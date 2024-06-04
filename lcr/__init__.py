@@ -47,6 +47,30 @@ class API:
 
         self._login(username, password)
 
+    def get_ffe_cookies(self):
+
+        if self.driver is None:
+            service = Service(ChromeDriverManager().install())
+            self.driver = webdriver.Chrome(service=service, options=CHROME_OPTIONS)
+
+        self.driver.get(f"https://{FFE_DOMAIN}")
+
+        # Wait until the page is loaded
+        WebDriverWait(self.driver, TIMEOUT).until(
+                ec.presence_of_element_located(
+                    (By.CSS_SELECTOR, "platform-header.PFshowHeader")
+                    )
+                )
+
+        time.sleep(5) # Unable to find a better item above to wait on, but the above still needs some of the page to load.
+
+        _LOGGER.info("getting ffe cookies")
+
+        # Get authState parameter.  Copy all cookies from the session rather than looking for a specific one.
+        cookies = self.driver.get_cookies()
+        for cookie in cookies:
+            self.session.cookies.set(cookie['name'], cookie['value'])
+
 
     def _login(self, user, password):
         _LOGGER.info("Logging in")
@@ -98,16 +122,27 @@ class API:
         for cookie in cookies:
             self.session.cookies.set(cookie['name'], cookie['value'])
 
+        self.get_ffe_cookies()
+
         self.driver.close()
         self.driver.quit()
 
-    def _make_request(self, request):
+    def _make_get_request(self, request):
         if self.beta:
             request['cookies'] = {'clerk-resources-beta-terms': '4.1',
                                   'clerk-resources-beta-eula': '4.2'}
 
         response = self.session.get(**request)
         response.raise_for_status()  # break on any non 200 status
+        return response
+
+    def _make_post_request(self, request):
+        if self.beta:
+            request['cookies'] = {'clerk-resources-beta-terms': '4.1',
+                                  'clerk-resources-beta-eula': '4.2'}
+
+        response = self.session.post(**request)
+        response.raise_for_status()
         return response
 
     def birthday_list(self, month, months=1):
@@ -123,7 +158,7 @@ class API:
             }
         }
 
-        result = self._make_request(request)
+        result = self._make_get_request(request)
         return result.json()
 
     def members_moved_in(self, months):
@@ -137,7 +172,7 @@ class API:
             'params': {'lang': 'eng'}
         }
 
-        result = self._make_request(request)
+        result = self._make_get_request(request)
         return result.json()
 
 
@@ -152,7 +187,7 @@ class API:
             'params': {'lang': 'eng'}
         }
 
-        result = self._make_request(request)
+        result = self._make_get_request(request)
         return result.json()
 
 
@@ -166,9 +201,9 @@ class API:
             }
         }
 
-        result = self._make_request(request)
+        result = self._make_get_request(request)
         return result.json()
-    
+
 
     def member_profile(self, member_id):
         _LOGGER.info("Getting member profile")
@@ -177,7 +212,7 @@ class API:
             'params': {'lang': 'eng'}
         }
 
-        result = self._make_request(request)
+        result = self._make_get_request(request)
         return result.json()
 
 
@@ -194,9 +229,9 @@ class API:
             }
         }
 
-        result = self._make_request(request)
+        result = self._make_get_request(request)
         scdn_url = result.json()['tokenUrl']
-        return self._make_request({'url': scdn_url}).content
+        return self._make_get_request({'url': scdn_url}).content
 
 
     def callings(self):
@@ -206,7 +241,7 @@ class API:
             'params': {'lang': 'eng'}
         }
 
-        result = self._make_request(request)
+        result = self._make_get_request(request)
         return result.json()
 
 
@@ -217,7 +252,7 @@ class API:
             'params': {'lang': 'eng'}
         }
 
-        result = self._make_request(request)
+        result = self._make_get_request(request)
         return result.json()
 
 
@@ -235,7 +270,7 @@ class API:
             }
         }
 
-        result = self._make_request(request)
+        result = self._make_get_request(request)
         return result.json()
 
 
@@ -249,7 +284,7 @@ class API:
             'params': {'lang': 'eng'}
         }
 
-        result = self._make_request(request)
+        result = self._make_get_request(request)
         return result.json()
 
 
@@ -265,7 +300,7 @@ class API:
                 'unitNumber': self.unit_number
             }
         }
-        result = self._make_request(request)
+        result = self._make_get_request(request)
         return result.json()
 
 
@@ -275,7 +310,7 @@ class API:
             'url': 'https://{}/api/cdol/details/unit/{}'.format(LCR_DOMAIN, unit_number),
             'params': {'lang': 'eng'}
         }
-        result = self._make_request(request)
+        result = self._make_get_request(request)
         return result.json()
 
 
@@ -284,7 +319,7 @@ class API:
         request = {
             'url': 'https://{}/api/accessible-units'.format(FFE_DOMAIN),
         }
-        result = self._make_request(request)
+        result = self._make_get_request(request)
         return result.json()
 
 
@@ -296,9 +331,9 @@ class API:
             'url': 'https://{}/api/graphql'.format(FFE_DOMAIN),
             'json': graphql_body
         }
-        result = self._make_request(request)
+        result = self._make_post_request(request)
         return result.json()
-    
+
 
     def financial_participant_list(self, orgId):
         graphql_body = {"operationName":"participants","variables":{"criteria":{"orgIds":[orgId],"status":"ACTIVE"}},"query":"query participants($criteria: ParticipantCriteria!) {\n  participants(criteria: $criteria, maxResults: 10000) {\n    results {\n      id\n      birthDate\n      gender\n      membershipId\n      isMember\n      isDonor\n      isPayee\n      isRecipient\n      taxId\n      address {\n        composed\n        __typename\n      }\n      emailAddress\n      names {\n        localUnitDisplayName\n        __typename\n      }\n      org {\n        id\n        name\n        localName1\n        parent {\n          id\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n"}
@@ -308,7 +343,7 @@ class API:
             'url': 'https://{}/api/graphql'.format(FFE_DOMAIN),
             'json': graphql_body
         }
-        result = self._make_request(request)
+        result = self._make_post_request(request)
         return result.json()
 
 
