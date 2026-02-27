@@ -50,3 +50,35 @@ for member in move_ins:
 - Add more tests
 - Support more reports and calls
 
+
+## Testing
+
+This repo now has two test suites:
+
+- `tests/test_cookie_routing.py` (unit tests)
+    - Fast tests that validate regular vs FFE cookie selection behavior.
+- `tests/test_all.py` (E2E integration tests)
+    - Logs into live LCR and exercises API endpoints against real responses.
+
+### Run tests
+
+```bash
+python -m pytest -q
+```
+
+### Required env vars for E2E tests
+
+- `LDS_USER`
+- `LDS_PASSWORD`
+- `LDS_UNIT_NUMBER`
+
+### Optional env vars for financial endpoint E2E tests
+
+Financial tests will auto-discover IDs when possible, but for reliable execution
+you can set:
+
+- `LCR_TEST_FINANCIAL_ORG_ID`
+- `LCR_TEST_FINANCIAL_ACCOUNT_ID`
+- `LCR_TEST_FINANCIAL_FROM_DATE` (default: `2025-01-01`)
+- `LCR_TEST_FINANCIAL_TO_DATE` (default: `2025-01-31`)
+
