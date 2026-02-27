@@ -12,8 +12,9 @@ PACKAGES = find_packages(exclude=['tests', 'tests.*'])
 
 REQUIRES = [
     "requests>=2,<3",
-    "selenium>=4.0,<5",
-    "webdriver_manager>=3.0,<4",
+    "selenium>=4.11.2,<5",
+    "webdriver_manager>=4.0.2,<5",
+    "python-dotenv>=1.0.0",
 ]
 
 here = os.path.abspath(os.path.dirname(__file__))
